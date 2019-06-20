@@ -23,10 +23,8 @@ define('LARAVEL_START', microtime(true));
 
 require __DIR__.'/../vendor/autoload.php';
 
-?>
-<h2>Hello World</h2>
-<pre>
-    <?php
-    print_r($_SERVER);
-    ?>
-</pre>
+
+
+$dir = str_replace("\\", "/", dirname(__FILE__));
+System\Core\App::run($dir);
+
