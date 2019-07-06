@@ -8,6 +8,21 @@ class Route {
      * @var array $supportedMethods các method dc ho tro
      */
     public static $supportedMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
+
+
+    /**
+     * @var array $helpers các method dc ho tro
+     */
+    public static $helpers = ['group', 'namespace', 'prefix', 'middleware'];
+
+
+    /**
+     * controller namespace
+     *
+     * @var string
+     */
+    protected $namespace = 'App\Controllers';
+
     /**
      * @var string $uri
      */
@@ -113,8 +128,15 @@ class Route {
         }else{
             $this->methods = ['GET'];
         }
+        return $this;
     }
 
+    /**
+     * thiet lap duong dan
+     *
+     * @param string $uri
+     * @return void
+     */
     public function setUri($uri)
     {
         $this->uri = $uri;
@@ -130,6 +152,7 @@ class Route {
             // đưa route uri về biểu thức regex
             $this->paramUri = preg_replace('#\{([A-z0-9_]*)\}#i', '([^/]*)', $uri);
         }
+        return $this;
     }
     /**
      * so sanh pathinfo va uri da khai bao
@@ -169,40 +192,24 @@ class Route {
         return in_array(strtoupper($method), $this->methods);
     }
 
+    /**
+     * set callback
+     *
+     * @param string|function $callback
+     * @return void
+     */
     public function setCallback($callback)
     {
-        if(is_callable($callback)) $this->callback = $callback;
-        elseif (is_string($callback)) {
-            $class = null;
-            $method = null;
-            // trường hợp callback = 'ExampleController->method'
-            if(count($arrow = explode('->', $callback)) == 2){
-                $class = $arrow[0];
-                $method = $arrow[1];
-            }
-            // trường hợp callback = 'ExampleController@method'
-            elseif(count($a = explode('->', $callback)) == 2){
-                $class = $a[0];
-                $method = $a[1];
-            }
-            if($class && class_exists($class)){
-                // khoi tao object
-                $rc = new ReflectionClass($class);
-                // goi ham construct
-                $controller = $rc->newInstanceArgs( [] );
-                $this->callback = [$controller, $method];
-            }else{
-                $this->callback = ['DefaultController', 'index'];
-            }
-        }else{
-            $this->callback = ['DefaultController', 'index'];
-        }
+        $this->callback = $callback;
+        return $this;
     }
 
-    public function name($name)
+    public function name($name = null)
     {
-        $this->name = $name;
+        if(is_null($name)) return $this->routeName;
+        $this->routeName = $name;
         static::$routes['names'][$this->index] = $name;
+        return $this;
     }
 
     public function setIndex($index = -1)
@@ -212,23 +219,72 @@ class Route {
 
     public function getRouteName()
     {
-        return $this->name;
+        return $this->routeName;
     }
 
+    public function getCallback()
+    {
+        $callback = $this->callback;
+        $callData = null;
+        if(is_callable($callback)){
+            $callData = $callback;
+        }
+        elseif (is_string($callback)) {
+            $class = null;
+            $method = null;
+            // trường hợp callback = 'ExampleController->method'
+            if(count($arrow = explode('->', $callback)) == 2){
+                $class = $arrow[0];
+                $method = $arrow[1];
+            }
+            // trường hợp callback = 'ExampleController@method'
+            elseif(count($a = explode('@', $callback)) == 2){
+                $class = $a[0];
+                $method = $a[1];
+            }
+
+            if($class){
+                if(class_exists($class)){
+                    $ctrl = $class;
+                }elseif (class_exists($c = $this->namespace . '\\' . $class)) { // kiểm tra class với namespace
+                    $ctrl = $c;
+                }else{
+                    $ctrl = $this->namespace . '\\' . 'DefaultController';
+                }
+                // khoi tao object
+                $rc = new ReflectionClass($ctrl);
+                // goi ham construct
+                $controller = $rc->newInstanceArgs( [] );
+                $callData = [$controller, $method];
+            }else{
+                $callData = $this->namespace . '\\' . 'DefaultController::notDefined';
+            }
+        }else{
+            $callData = $this->namespace . '\\' . 'DefaultController::notDefined';
+        }
+        return $callData;
+    }
+    
     /**
      * thực thi route
      */
     public function run()
     {
-        return call_user_func_array($this->callback, $this->values);
+        return call_user_func_array($this->getCallback(), $this->values);
     }
 
 
+
+    /**
+     * thêm route
+     * @param Route $route
+     */
     protected static function addRoute(Route $route)
     {
         // lấy index để truy xuất route theo tên cho nhanh khi cần
         $index = count(static::$routes['list']);
         // thêm route
+        $route->setIndex($index);
         static::$routes['list'][$index] = $route;
         // kiểm tra tên
         if($name = $route->getRouteName()){
@@ -250,6 +306,12 @@ class Route {
         return $route;
     }
 
+    /**
+     * khai bao mot rout chap nhan tat ca cac http method
+     *
+     * @param mixed ...$params
+     * @return void
+     */
     public static function any(...$params){
         return static::setRoute('*', ...$params);
     }
@@ -258,12 +320,24 @@ class Route {
         return static::setRoute(...$params);
     }
 
-    
 
+
+
+    /**
+     * gọi phương thức static chưa được khai báo
+     *
+     * @param string $name
+     * @param array $arguments
+     * @return mixed
+     */
     public static function __callStatic($name, $arguments)
     {
-        return static::setRoute($name, ...$arguments);
+        $name = strtoupper($name);
+        if(in_array($name, static::$supportedMethods)){
+            return static::setRoute($name, ...$arguments);
+        }
     }
+
 
     public static function first($pathinfo)
     {

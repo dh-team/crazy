@@ -13,8 +13,9 @@ class App {
      * chạy ứng dụng
      * @param string $dir
      */
-    public function run($dir)
+    public static function run($dir)
     {
+        
         $request_uri = explode('?', $_SERVER['REQUEST_URI']);
 
         $uri = $request_uri[0];
@@ -26,10 +27,37 @@ class App {
 
         static::$data['request'] =compact('uri', 'pathinfo');
         static::$data['paths'] = [
-            'system_path' => $path,
-            'public_path' => $dir,
+            'system' => dirname($dir),
+            'public' => $dir,
         ];
-        
+
+        static::setWebRoute();
+
+        static::fetchRoute($pathinfo);
     }
-    
+
+    /**
+     * bắt route
+     * @param string $pathinfo
+     * @return mixed
+     */
+    public static function fetchRoute($pathinfo)
+    {
+        if($router = Route::first($pathinfo)){
+            $response = $router->run();
+            if(is_string($response) || is_numeric($response)) echo $response;
+            else echo json_decode($response);
+        }
+        else echo '<h3>404 - not found</h3>';
+    }
+
+    public static function setWebRoute()
+    {
+        require static::path('system') .'/routes/web.php';
+    }
+
+    public static function path($key)
+    {
+        return array_key_exists($key, static::$data['paths']) ? static::$data['paths'][$key]:null;
+    }
 }
