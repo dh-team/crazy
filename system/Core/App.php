@@ -2,6 +2,8 @@
 
 namespace System\Core;
 
+use Jenssegers\Blade\Blade;
+
 class App {
     protected static $data = [
         'paths' => [],
@@ -25,11 +27,20 @@ class App {
     
         $pathinfo = trim(preg_replace('#^'.trim($path, '/').'#i', '', trim($uri, '/')), '/');
 
-        static::$data['request'] =compact('uri', 'pathinfo');
-        static::$data['paths'] = [
-            'system' => dirname($dir),
+        static::$data['request'] = compact('uri', 'pathinfo');
+        $base = dirname($dir);
+        $paths = [
+            'base' => $base,
+            'system' => $base.'/system',
             'public' => $dir,
+            'views' => $base. '/views',
+            'view_cache' => $base. '/storage/views',
+            
         ];
+        static::$data['paths'] = $paths;
+        
+        View::start($paths['views'], $paths['view_cache']);
+
 
         static::setWebRoute();
 
@@ -45,7 +56,7 @@ class App {
     {
         if($router = Route::first($pathinfo)){
             $response = $router->run();
-            if(is_string($response) || is_numeric($response)) echo $response;
+            if(is_string($response) || is_numeric($response) || is_a($response, 'Blade')) echo $response;
             else echo json_decode($response);
         }
         else echo '<h3>404 - not found</h3>';
@@ -53,7 +64,7 @@ class App {
 
     public static function setWebRoute()
     {
-        require static::path('system') .'/routes/web.php';
+        require static::path('base') .'/routes/web.php';
     }
 
     public static function path($key)

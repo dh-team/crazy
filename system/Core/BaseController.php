@@ -9,6 +9,6 @@ abstract class BaseController
      */
     public function view($viewName, array $data = [])
     {
-        echo $viewName . ': '. json_encode($data);
+        return View::make($viewName, $data)->render();
     }
 }

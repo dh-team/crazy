@@ -7,7 +7,7 @@ Route::get('test', function(){
 Route::get('demo', function(){
     echo 'demo';
 });
-Route::get('user/{name}/{age}/{gender}', 'DefaultController@info');
+Route::get('user/{name}/{age}/{gender}.html', 'DefaultController@info');
 
 Route::delete('delete', function(){
     echo 'demo';
