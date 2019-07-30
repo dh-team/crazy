@@ -8,7 +8,7 @@
 </head>
 <body>
 
-    <form action="/login" method="post">
+    <form action="/login?name=12334" method="post">
         <label for="username"> Tên đăng nhập </label>
         <input type="text" name="username" id="username" placeholder="Nhập username">
         <br>

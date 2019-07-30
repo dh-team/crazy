@@ -20,3 +20,5 @@ Route::custom(['get', 'post'], 'custom', function(){
 });
 
 Route::get('login.html', 'DemoFormController@getForm');
+Route::post('login', 'DemoFormController@login');
+Route::put('login', 'DemoFormController@login');
