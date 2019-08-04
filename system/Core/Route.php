@@ -2,6 +2,8 @@
 
 namespace System\Core;
 use ReflectionClass;
+use ReflectionMethod;
+use ReflectionParameter;
 
 class Route {
     /**
@@ -88,6 +90,7 @@ class Route {
         'names' => []
     ];
 
+    protected static $activeRoute = null;
     /**
      * ham khời tạo
      * @param string|array $method
@@ -204,11 +207,17 @@ class Route {
         return $this;
     }
 
+    /**
+     * dat ten cho route
+     *
+     * @param string $name
+     * @return void
+     */
     public function name($name = null)
     {
         if(is_null($name)) return $this->routeName;
         $this->routeName = $name;
-        static::$routes['names'][$this->index] = $name;
+        static::$routes['names'][$name] = $this->index;
         return $this;
     }
 
@@ -251,16 +260,52 @@ class Route {
                 }else{
                     $ctrl = $this->namespace . '\\' . 'DefaultController';
                 }
+                
+                if (method_exists($ctrl,  '__construct')) 
+                { 
+                    
+                
                 // khoi tao object
-                $rc = new ReflectionClass($ctrl);
+                //$refMethod = new ReflectionMethod($ctrl,  '__construct'); 
+                //$params = $refMethod->getParameters(); 
+            
+                // $re_args = array(); 
+                /*
+                foreach($params as $key => $param) 
+                { 
+                    if ($param->isPassedByReference()) 
+                    { 
+                        $re_args[$key] = &$args[$key]; 
+                    } 
+                    else 
+                    { 
+                        $re_args[$key] = $args[$key]; 
+                    } 
+                } 
+            
+                */
+                // $refClass = new ReflectionClass($class_name); 
+                // $class_instance = $refClass->newInstanceArgs((array) $re_args); 
+                }
+                //$rc = new ReflectionClass($ctrl);
                 // goi ham construct
-                $controller = $rc->newInstanceArgs( [] );
-                $callData = [$controller, $method];
+                //$controller = $rc->newInstanceArgs( [] );
+                $callData = [
+                    'type' => 'controller',
+                    'class' => $ctrl,
+                    'method' => $method
+                ];
             }else{
-                $callData = $this->namespace . '\\' . 'DefaultController::notDefined';
+                $callData = [
+                    'type' => 'function',
+                    'function' => $this->namespace . '\\' . 'DefaultController::notDefined'
+                ];
             }
         }else{
-            $callData = $this->namespace . '\\' . 'DefaultController::notDefined';
+            $callData = [
+                'type' => 'function',
+                'function' => $this->namespace . '\\' . 'DefaultController::notDefined'
+            ];
         }
         return $callData;
     }
@@ -270,10 +315,89 @@ class Route {
      */
     public function run()
     {
-        return call_user_func_array($this->getCallback(), $this->values);
+        $callable = $this->getCallback();
+        $routeParams = $this->values;
+        if($callable['type'] == 'controller'){
+            if(!method_exists($callable['class'],  $callable['method'])){
+                throw new \Exception("Phuong thuc $callable[controller]::$callable[method] khong ton tai");
+                die;
+            }
+            
+            $class = new ReflectionClass($callable['class']);
+            $method = $class->getMethod($callable['method']);
+            $params = $method->getParameters();
+            
+            $parameterTypes = [];
+            
+            if(count($params)){
+                $refParam = new ReflectionParameter([$callable['class'],  $callable['method']], 0);
+                $type = trim($refParam->getType());
+                if($type && class_exists($type)){
+                    $ref = new ReflectionClass($type);
+                    $firstParam = $ref->newInstanceArgs([]);
+                    array_unshift($routeParams, $firstParam); 
+                }
+            }
+            $controller = $class->newInstanceArgs([]);
+            $call = [$controller, $callable['method']];
+        }else{
+            $call = $callable['function'];
+        }
+        
+
+        return call_user_func_array($call, $routeParams);
     }
 
+    /**
+     * tạo ra url
+     * @param array $params
+     * @return string
+     */
+    public function getUrl($params = [])
+    {
+        $uri = $this->uri;
+        $queryStringParams = []; // ?name=a
+        $matchCount = 0;
+        if(!$this->hasParam){
+            $queryStringParams = $params;
+        }elseif(count($params)){
+            //print_r($params);
+            // /print_r($this->match);
+            foreach ($params as $key => $value) {
+                if(array_key_exists($key, $this->match)){
+                    $matchCount++;
+                    $uri = str_replace($this->match[$key], $value, $uri);
+                }else{
+                    $queryStringParams[$key] = $value;
+                }
+            }
+        }
+        
+        if(count($this->params) != $matchCount){
+            throw new \Exception("Route thiếu tham số");
+            return null;
+        }
+        if(count($queryStringParams)){
+            $uri.='?';
+            foreach ($queryStringParams as $key => $value) {
+                $uri.=$key .'='. urlencode($value).'&';
+            }
+            $uri = rtrim($uri, '&');
+        }
+        return App::getUrl($uri);
+    }
 
+    /**
+     * lay gia tri tham so
+     *
+     * @param string $key
+     * @param mixed $default
+     * @return void
+     */
+    public function getParam(string $key = null, $default = null)
+    {
+        return is_null($key) ? $this->data : ($this->data[$key] ?? $default);
+    }
 
     /**
      * thêm route
@@ -339,14 +463,50 @@ class Route {
     }
 
 
+    /**
+     * lấy ra route trùng khớp với url đầu tiên
+     *
+     * @param string $pathinfo
+     * @return Route|null
+     */
     public static function first($pathinfo)
     {
         if(count(static::$routes['list'])){
             foreach (static::$routes['list'] as $route) {
-                if($route->compareUri($pathinfo)) return $route;
+                if($route->compareUri($pathinfo)) {
+                    static::$activeRoute = $route;
+                    return $route;
+                }
             }
         }
         return null;
+    }
+
+    /**
+     * lấy route theo route name
+     *
+     * @param string $name
+     * @return Route|null
+     */
+    public static function getRouteByName($name)
+    {
+        if(array_key_exists($name, static::$routes['names'])){
+            $index = static::$routes['names'][$name];
+            if(array_key_exists($index, static::$routes['list'])){
+                return static::$routes['list'][$index];
+            }
+        }
+        return null;
+    }
+
+    public static function getActiveRoute()
+    {
+        return static::$activeRoute;
+    }
+
+    public static function all()
+    {
+        return static::$routes['list'];
     }
 }
 

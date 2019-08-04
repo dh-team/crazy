@@ -9,5 +9,6 @@
 <body>
     <h1>Hello World</h1>
     <?php echo $__env->make('info', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+    <a href="<?php echo e(route('user', ['name' => 'Doan', 'age' => 28, 'gender' => 'male', 'status'=>'FA'])); ?>">Doãn</a>
 </body>
 </html><?php /**PATH E:\Websites\toiladev.vn\crazy\views/hello-world.blade.php ENDPATH**/ ?>

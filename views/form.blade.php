@@ -8,7 +8,7 @@
 </head>
 <body>
 
-    <form action="/login?name=12334" method="post">
+    <form action="{{route('update', ['id' => 101])}}" method="post">
         <label for="username"> Tên đăng nhập </label>
         <input type="text" name="username" id="username" placeholder="Nhập username">
         <br>

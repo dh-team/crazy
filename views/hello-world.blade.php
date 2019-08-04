@@ -9,5 +9,6 @@
 <body>
     <h1>Hello World</h1>
     @include('info')
+    <a href="{{route('user', ['name' => 'Doan', 'age' => 28, 'gender' => 'male', 'status'=>'FA'])}}">Doãn</a>
 </body>
 </html>

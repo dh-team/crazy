@@ -16,9 +16,18 @@ class DemoFormController extends Controller{
     public function login()
     {
         $request = new Request();
-        // php thuần 
         
         print_r($request->all());
+        
+    }
+
+    /**
+     * lấy thông tin để thực hiện login
+     */
+    public function update(Request $request, int $id, $test = null)
+    {
+        
+        return ($request->id);
         
     }
 }

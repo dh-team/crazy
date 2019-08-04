@@ -10,6 +10,7 @@ class App {
         'request' => []
     ];
 
+    protected static $url = '/';
 
     /**
      * chạy ứng dụng
@@ -24,7 +25,9 @@ class App {
         $root = $_SERVER['DOCUMENT_ROOT'];
     
         $path = trim(str_replace($root, '', $dir), '/');
-    
+        
+        static::$url = 'http://'.$_SERVER['HTTP_HOST'] .'/'.ltrim($path, '/');
+        
         $pathinfo = trim(preg_replace('#^'.trim($path, '/').'#i', '', trim($uri, '/')), '/');
 
         static::$data['request'] = compact('uri', 'pathinfo');
@@ -70,5 +73,14 @@ class App {
     public static function path($key)
     {
         return array_key_exists($key, static::$data['paths']) ? static::$data['paths'][$key]:null;
+    }
+
+    public static function getUrl($path = null)
+    {
+        $url = rtrim(static::$url, '/');
+        if($path){
+            $url .= '/'. ltrim($path);
+        }
+        return $url;
     }
 }

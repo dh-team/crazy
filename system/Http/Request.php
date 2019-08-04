@@ -3,6 +3,7 @@
 namespace System\Http;
 
 use System\Helpers\Arr;
+use System\Core\Route;
 
 Class Request{
     /**
@@ -10,7 +11,7 @@ Class Request{
      *
      * @var array
      */
-    protected $methodPriority = ['post', 'get', 'request'];
+    protected $methodPriority = ['post', 'get', 'request', 'route'];
     /**
      * data
      *
@@ -18,6 +19,10 @@ Class Request{
      */
     protected static $userData = null;
 
+    public function __construct()
+    {
+        static::check();
+    }
     // kiểm tra xem da dc set hay chua
     protected static function check()
     {
@@ -35,19 +40,45 @@ Class Request{
 
                 $_REQUEST = array_merge($_REQUEST, $_PUT);
             }
+            $routeData = [];
+            if($route = Route::getActiveRoute()){
+                $routeData = $route->getParam();
+            }
             static::$userData = new Arr([
                 'post' => $_POST,
                 'get' => $_GET,
                 'request' => $_REQUEST,
+                'route' => $routeData,
                 'session' => $_SESSION,
                 'cookie' => $_COOKIE
             ]);
         }
     }
 
+    /**
+     * lay ra route hien tai hoac tham so cua route hien tai
+     *
+     * @param string|null $key
+     * @param mixed $default
+     * @return Route|mixed
+     */
+    public function route($key = null, $default = null)
+    {
+        $returnData = null;
+        if($route = Route::getActiveRoute()){
+            if(is_null($key)){
+                $returnData = $returnData;
+            }else{
+                $returnData = $route->getParam($key, $default);
+            }
+        }else{
+            $returnData = $default;
+        }
+        return $returnData;
+    }
+
     public function __get($name)
     {
-        static::check();
         $val = null;
         foreach ($this->methodPriority as $method) {
             $v = static::$userData->get($method . '.' .$name);
@@ -61,7 +92,6 @@ Class Request{
 
     public function all()
     {
-        static::check();
         return static::$userData->get('request');
     }
 
@@ -75,7 +105,6 @@ Class Request{
      */
     public function __call($name, $arguments)
     {
-        static::check();
         if(in_array($k = strtolower($name), ['get', 'post', 'request', 'session', 'cookie'])){
             $key = $k;
             if(count($arguments)){
