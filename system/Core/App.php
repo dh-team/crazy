@@ -2,10 +2,10 @@
 
 namespace System\Core;
 
-use Jenssegers\Blade\Blade;
+use System\Database\DB;
 
 class App {
-    protected static $data = [
+    protected static $config = [
         'paths' => [],
         'request' => []
     ];
@@ -20,30 +20,31 @@ class App {
     {
         
         $request_uri = explode('?', $_SERVER['REQUEST_URI']);
-
         $uri = $request_uri[0];
         $root = $_SERVER['DOCUMENT_ROOT'];
-    
         $path = trim(str_replace($root, '', $dir), '/');
-        
         static::$url = 'http://'.$_SERVER['HTTP_HOST'] .'/'.ltrim($path, '/');
-        
         $pathinfo = trim(preg_replace('#^'.trim($path, '/').'#i', '', trim($uri, '/')), '/');
+        static::$config['request'] = compact('uri', 'pathinfo');
 
-        static::$data['request'] = compact('uri', 'pathinfo');
+        // config
         $base = dirname($dir);
         $paths = [
-            'base' => $base,
-            'system' => $base.'/system',
-            'public' => $dir,
-            'views' => $base. '/views',
-            'view_cache' => $base. '/storage/views',
-            
+            'base' => $base
         ];
-        static::$data['paths'] = $paths;
+        $configDir = $base.'/config/';
+        $configPaths = require ($configDir.'path.php');
+        foreach ($configPaths as $key => $value) {
+            $paths[$key] = $base .'/' .ltrim($value);
+        }
+
+        static::$config['paths'] = $paths;
+
+        static::$config['database'] = require $configDir . 'database.php';
         
         View::start($paths['views'], $paths['view_cache']);
 
+        DB::config(static::$config['database']);
 
         static::setWebRoute();
 
@@ -72,7 +73,7 @@ class App {
 
     public static function path($key)
     {
-        return array_key_exists($key, static::$data['paths']) ? static::$data['paths'][$key]:null;
+        return array_key_exists($key, static::$config['paths']) ? static::$config['paths'][$key]:null;
     }
 
     public static function getUrl($path = null)

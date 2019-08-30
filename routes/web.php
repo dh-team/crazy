@@ -23,3 +23,6 @@ Route::get('login.html', 'DemoFormController@getForm');
 Route::post('login', 'DemoFormController@login');
 Route::post('update/{id}', 'DemoFormController@update')->name('update');
 Route::put('login', 'DemoFormController@login');
+
+
+Route::get('database.html', 'DatabaseController@test')->name('database.test');
